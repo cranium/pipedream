@@ -3,8 +3,10 @@ import base64
 import struct
 from hashlib import sha1
 
+
 def buildAccept(key):
     return base64.b64encode(sha1(b"".join([key, b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"])).digest())
+
 
 class WebsocketHandshakeProtocol:
     MAX_HEADERS = 256
@@ -68,6 +70,7 @@ class WebsocketHandshakeProtocol:
         if not line.endswith(b'\r\n'):
             raise ValueError("Line without CRLF")
         return line
+
 
 class WebsocketProtocol:
     def __init__(self, reader, writer):
