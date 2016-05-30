@@ -1,10 +1,19 @@
 import asyncio
 import base64
-import struct
 from hashlib import sha1
+import struct
+
+opcodes = {
+    0: "continuation frame",
+    1: "text frame",
+    2: "binary frame",
+    8: "connection close",
+    9: "ping",
+    10: "pong"
+}
 
 
-def buildAccept(key):
+def build_accept(key):
     return base64.b64encode(sha1(b"".join([key, b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"])).digest())
 
 
@@ -25,7 +34,7 @@ class WebsocketHandshakeProtocol:
 
             ws_key = headers[b"Sec-WebSocket-Key"]
 
-            ws_accept = buildAccept(ws_key)
+            ws_accept = build_accept(ws_key)
 
             print(ws_accept)
 
@@ -46,7 +55,6 @@ class WebsocketHandshakeProtocol:
 
         except:
             return False
-
 
     @asyncio.coroutine
     def read_request(self):
@@ -81,24 +89,48 @@ class WebsocketProtocol:
     @asyncio.coroutine
     def listen(self):
         while True:
-            msg = yield from WebsocketMessage(self.reader).read_message()
+            messageObject = WebsocketMessage(self.reader)
+            msg = yield from messageObject.read_message()
 
 
 class WebsocketMessage():
     def __init__(self, reader):
         self.reader = reader
-        self.fin = None
 
     @asyncio.coroutine
     def read_message(self):
-        a = yield from self.reader.read(2)
-        head, opcode = struct.unpack("!BB", a)
-        fin = head >> 7
-        if fin:
-            self.fin = True
-        else:
-            self.fin = False
+        head_byte = yield from self.reader.read(1)
+        head = head_byte[0]
+        fin = bool(head >> 7)
+        opcode = int(head & 0b00001111)
+        next_byte = yield from self.reader.read(1)
+        next = next_byte[0]
+        mask = bool(next >> 7)
+        payload_length = next & 0b01111111
+        if payload_length == 126:
+            payload_bytes = yield from self.reader.read(2)
+            payload_length = struct.unpack('BB', payload_bytes)
+        elif payload_length == 127:
+            payload_bytes = yield from self.reader.read(8)
+            payload_length = struct.unpack('BBBBBBBB', payload_bytes)
+        if mask:
+            masking_key = yield from self.reader.read(4)
 
+        encoded_payload = yield from self.reader.read(payload_length)
+
+        decoded_payload = bytearray()
+        i = 0
+        for byte in encoded_payload:
+            if mask:
+                decoded_payload.append(byte ^ masking_key[i % 4])
+            else:
+                decoded_payload.append(byte)
+            i += 1
+
+        if opcode == 1:
+            decoded_payload = decoded_payload.decode('utf-8')
+            print("Message Received - fin: {fin}, opcode: {opcode}, mask: {mask}".format(fin=fin, opcode=opcode, mask=mask))
+            print("Message: {payload}".format(payload=decoded_payload))
 
 
 @asyncio.coroutine
