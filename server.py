@@ -3,14 +3,14 @@ import base64
 from hashlib import sha1
 import struct
 
-opcodes = {
-    0: "continuation frame",
-    1: "text frame",
-    2: "binary frame",
-    8: "connection close",
-    9: "ping",
-    10: "pong"
-}
+
+class OpCodes:
+    CONTINUATION = 0
+    TEXT = 1
+    BINARY = 2
+    CLOSE = 8
+    PING = 9
+    PONG = 10
 
 
 def build_accept(key):
@@ -29,10 +29,8 @@ class WebsocketHandshakeProtocol:
     def handshake(self):
         try:
             headers = yield from self.read_request()
-            print(headers)
             ws_key = headers[b"Sec-WebSocket-Key"]
             ws_accept = build_accept(ws_key)
-            print(ws_accept)
             arr = [
                 b"HTTP/1.1 101 Switching Protocols",
                 b"Upgrade: websocket",
@@ -75,12 +73,15 @@ class WebsocketProtocol:
     def __init__(self, reader, writer):
         self.reader = reader
         self.writer = writer
-        self.open = True
 
     @asyncio.coroutine
     def listen(self):
-        while True:
+        closed = False
+        while not closed:
             message = yield from WebsocketMessage.await_message(self.reader)
+            if message.opcode == 8:
+                closed = True
+                self.writer.close()
 
 
 class WebsocketFrame():
@@ -141,16 +142,11 @@ class WebsocketMessage():
 
 @asyncio.coroutine
 def protocol_factory(reader, writer):
-    print("Connection Opened to:")
-    print(writer.get_extra_info('peername'))
     http = WebsocketHandshakeProtocol(reader, writer)
     upgrade = yield from http.handshake()
     if upgrade:
-        print("Connection Upgraded")
         ws = WebsocketProtocol(reader, writer)
         yield from ws.listen()
-    print("Connection Closed")
-    writer.close()
 
 loop = asyncio.get_event_loop()
 loop.set_debug(True)
