@@ -29,15 +29,10 @@ class WebsocketHandshakeProtocol:
     def handshake(self):
         try:
             headers = yield from self.read_request()
-
             print(headers)
-
             ws_key = headers[b"Sec-WebSocket-Key"]
-
             ws_accept = build_accept(ws_key)
-
             print(ws_accept)
-
             arr = [
                 b"HTTP/1.1 101 Switching Protocols",
                 b"Upgrade: websocket",
@@ -45,14 +40,10 @@ class WebsocketHandshakeProtocol:
                 b"Sec-WebSocket-Accept: " + ws_accept,
                 b"\r\n"
             ]
-
             response = b"\r\n".join(arr)
-
             self.writer.write(response)
             yield from self.writer.drain()
-
             return True
-
         except:
             return False
 
@@ -89,30 +80,30 @@ class WebsocketProtocol:
     @asyncio.coroutine
     def listen(self):
         while True:
-            message = yield from WebsocketFrame.read_frame(self.reader)
+            message = yield from WebsocketMessage.await_message(self.reader)
 
 
 class WebsocketFrame():
-    def __init__(self):
-        pass
+    def __init__(self, fin, opcode, data):
+        self.fin = fin
+        self.opcode = opcode
+        self.data = data
 
     @classmethod
     @asyncio.coroutine
     def read_frame(cls, reader):
-        head_byte = yield from reader.read(1)
-        head = head_byte[0]
+        head = (yield from reader.read(1))[0]
         fin = bool(head >> 7)
         opcode = int(head & 0b00001111)
-        next_byte = yield from reader.read(1)
-        next = next_byte[0]
+        next = (yield from reader.read(1))[0]
         mask = bool(next >> 7)
         payload_length = next & 0b01111111
         if payload_length == 126:
             payload_bytes = yield from reader.read(2)
-            payload_length = struct.unpack('BB', payload_bytes)
+            payload_length = struct.unpack('H', payload_bytes)[0]
         elif payload_length == 127:
             payload_bytes = yield from reader.read(8)
-            payload_length = struct.unpack('BBBBBBBB', payload_bytes)
+            payload_length = struct.unpack('Q', payload_bytes)[0]
         if mask:
             masking_key = yield from reader.read(4)
 
@@ -127,17 +118,25 @@ class WebsocketFrame():
                 decoded_payload.append(byte)
             i += 1
 
-        return cls()
+        return cls(fin, opcode, decoded_payload)
 
 
 class WebsocketMessage():
+    def __init__(self, opcode, data):
+        self.opcode = opcode
+        self.data = data
+
     @classmethod
     @asyncio.coroutine
     def await_message(cls, reader):
-        frame = yield from WebsocketFrame.read_frame(reader)
-        
-
-
+        data = bytearray()
+        fin = False
+        while not fin:
+            frame = yield from WebsocketFrame.read_frame(reader)
+            data.extend(frame.data)
+            fin = frame.fin
+        opcode = frame.opcode
+        return cls(opcode, data)
 
 @asyncio.coroutine
 def protocol_factory(reader, writer):
