@@ -21,7 +21,6 @@ class WebSocketProtocol:
         closed = False
         while not closed:
             message = yield from WebSocketMessage.await_message(self.reader)
-            print(message.data)
             if message.opcode == OpCodes.CLOSE:
                 closed = True
                 self.writer.close()
