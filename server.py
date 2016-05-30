@@ -129,13 +129,14 @@ class WebsocketMessage():
     @classmethod
     @asyncio.coroutine
     def await_message(cls, reader):
-        data = bytearray()
-        fin = False
+        frame = yield from WebsocketFrame.read_frame(reader)
+        opcode = frame.opcode
+        data = frame.data
+        fin = frame.fin
         while not fin:
             frame = yield from WebsocketFrame.read_frame(reader)
             data.extend(frame.data)
             fin = frame.fin
-        opcode = frame.opcode
         return cls(opcode, data)
 
 @asyncio.coroutine
