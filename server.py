@@ -79,7 +79,7 @@ class WebsocketProtocol:
         closed = False
         while not closed:
             message = yield from WebsocketMessage.await_message(self.reader)
-            if message.opcode == 8:
+            if message.opcode == OpCodes.CLOSE:
                 closed = True
                 self.writer.close()
 
