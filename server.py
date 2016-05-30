@@ -89,34 +89,34 @@ class WebsocketProtocol:
     @asyncio.coroutine
     def listen(self):
         while True:
-            messageObject = WebsocketMessage(self.reader)
-            msg = yield from messageObject.read_message()
+            message = yield from WebsocketFrame.read_frame(self.reader)
 
 
-class WebsocketMessage():
-    def __init__(self, reader):
-        self.reader = reader
+class WebsocketFrame():
+    def __init__(self):
+        pass
 
+    @classmethod
     @asyncio.coroutine
-    def read_message(self):
-        head_byte = yield from self.reader.read(1)
+    def read_frame(cls, reader):
+        head_byte = yield from reader.read(1)
         head = head_byte[0]
         fin = bool(head >> 7)
         opcode = int(head & 0b00001111)
-        next_byte = yield from self.reader.read(1)
+        next_byte = yield from reader.read(1)
         next = next_byte[0]
         mask = bool(next >> 7)
         payload_length = next & 0b01111111
         if payload_length == 126:
-            payload_bytes = yield from self.reader.read(2)
+            payload_bytes = yield from reader.read(2)
             payload_length = struct.unpack('BB', payload_bytes)
         elif payload_length == 127:
-            payload_bytes = yield from self.reader.read(8)
+            payload_bytes = yield from reader.read(8)
             payload_length = struct.unpack('BBBBBBBB', payload_bytes)
         if mask:
-            masking_key = yield from self.reader.read(4)
+            masking_key = yield from reader.read(4)
 
-        encoded_payload = yield from self.reader.read(payload_length)
+        encoded_payload = yield from reader.read(payload_length)
 
         decoded_payload = bytearray()
         i = 0
@@ -127,10 +127,16 @@ class WebsocketMessage():
                 decoded_payload.append(byte)
             i += 1
 
-        if opcode == 1:
-            decoded_payload = decoded_payload.decode('utf-8')
-            print("Message Received - fin: {fin}, opcode: {opcode}, mask: {mask}".format(fin=fin, opcode=opcode, mask=mask))
-            print("Message: {payload}".format(payload=decoded_payload))
+        return cls()
+
+
+class WebsocketMessage():
+    @classmethod
+    @asyncio.coroutine
+    def await_message(cls, reader):
+        frame = yield from WebsocketFrame.read_frame(reader)
+        
+
 
 
 @asyncio.coroutine
