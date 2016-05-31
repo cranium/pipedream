@@ -17,13 +17,24 @@ class WebSocketProtocol:
         self.writer = writer
 
     @asyncio.coroutine
-    def listen(self):
-        closed = False
-        while not closed:
-            message = yield from WebSocketMessage.await_message(self.reader)
-            if message.opcode == OpCodes.CLOSE:
-                closed = True
-                self.writer.close()
+    def recv(self):
+        message = yield from WebSocketMessage.await_message(self.reader)
+        return message
+
+    @asyncio.coroutine
+    def send(self, data):
+        if type(data) == str:
+            opcode = OpCodes.TEXT
+            data = data.encode()
+        else:
+            opcode = OpCodes.BINARY
+            data = bytes(data)
+        yield from WebSocketMessage.compose_frame(self.writer, True, opcode, False, data)
+
+    @asyncio.coroutine
+    def close(self, status_code, message):
+        data = WebSocketMessage.build_close_data(status_code, message)
+        WebSocketMessage.compose_frame(self.writer, True, OpCodes.CLOSE, False, data)
 
 
 class WebSocketFrame:
@@ -43,10 +54,10 @@ class WebSocketFrame:
         payload_length = next & 0b01111111
         if payload_length == 126:
             payload_bytes = yield from reader.read(2)
-            payload_length = struct.unpack('H', payload_bytes)[0]
+            payload_length = struct.unpack('!H', payload_bytes)[0]
         elif payload_length == 127:
             payload_bytes = yield from reader.read(8)
-            payload_length = struct.unpack('Q', payload_bytes)[0]
+            payload_length = struct.unpack('!Q', payload_bytes)[0]
         if mask:
             masking_key = yield from reader.read(4)
 
@@ -60,7 +71,6 @@ class WebSocketFrame:
             else:
                 decoded_payload.append(byte)
             i += 1
-
         return cls(fin, opcode, decoded_payload)
 
 
@@ -81,3 +91,40 @@ class WebSocketMessage:
             data.extend(frame.data)
             fin = frame.fin
         return cls(opcode, data)
+
+    @classmethod
+    @asyncio.coroutine
+    def compose_frame(cls, writer, fin, opcode, mask, data):
+        frame = bytearray()
+        head = 0b00000000
+        if fin:
+            head |= 0b10000000
+        head |= opcode
+        frame.append(head)
+        next_byte = 0b00000000
+        payload_length = len(data)
+        if 65535 >= payload_length >= 126:
+            next_byte |= 126
+            extended_bytes = struct.pack("!H", payload_length)
+        elif payload_length > 65535:
+            next_byte |= 127
+            extended_bytes = struct.pack("!Q", payload_length)
+        else:
+            next_byte |= payload_length
+            extended_bytes = None
+        frame.append(next_byte)
+        if extended_bytes:
+            frame.extend(extended_bytes)
+        if data:
+            frame.extend(data)
+        writer.write(frame)
+        yield from writer.drain()
+
+    @classmethod
+    def build_close_data(cls, status_code, message):
+        data = bytearray()
+        if status_code:
+            data.extend(struct.pack("!H"))
+            if message:
+                data.extend(message.encode())
+        return data
