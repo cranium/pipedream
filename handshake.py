@@ -17,9 +17,8 @@ class WebSocketHandshakeProtocol:
         self.reader = reader
         self.writer = writer
 
-    @asyncio.coroutine
-    def handshake(self):
-        headers = yield from self.read_request()
+    async def handshake(self):
+        headers = await self.read_request()
         ws_key = headers[b"Sec-WebSocket-Key"]
         ws_accept = self.build_accept_hash(ws_key)
         response_lines = (
@@ -31,15 +30,14 @@ class WebSocketHandshakeProtocol:
         )
         response = b"\r\n".join(response_lines)
         self.writer.write(response)
-        yield from self.writer.drain()
+        await self.writer.drain()
         return True
 
-    @asyncio.coroutine
-    def read_request(self):
+    async def read_request(self):
         headers = {}
-        request_line = yield from self.read_line()
+        request_line = await self.read_line()
         for _ in range(self.MAX_HEADERS):
-            line = yield from self.read_line()
+            line = await self.read_line()
             if line == b'\r\n':
                 break
             key, value = map(lambda x: x.strip(), line.split(b":", 1))
@@ -48,9 +46,8 @@ class WebSocketHandshakeProtocol:
             raise ValueError("Too many headers")
         return headers
 
-    @asyncio.coroutine
-    def read_line(self):
-        line = yield from self.reader.readline()
+    async def read_line(self):
+        line = await self.reader.readline()
         if len(line) > self.MAX_LINE:
             raise ValueError("Line too long")
         if not line.endswith(b'\r\n'):

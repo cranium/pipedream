@@ -16,23 +16,20 @@ class WebSocketProtocol:
         self.reader = reader
         self.writer = writer
 
-    @asyncio.coroutine
-    def recv(self):
-        message = yield from WebSocketMessage.await_message(self.reader)
+    async def recv(self):
+        message = await WebSocketMessage.await_message(self.reader)
         return message
 
-    @asyncio.coroutine
-    def send(self, data):
-        if type(data) == str:
-            opcode = OpCodes.TEXT
+    async def send(self, data, text=True):
+        if text:
             data = data.encode()
+            opcode = OpCodes.TEXT
         else:
-            opcode = OpCodes.BINARY
             data = bytes(data)
-        yield from WebSocketMessage.compose_frame(self.writer, True, opcode, False, data)
+            opcode = OpCodes.BINARY
+        await WebSocketMessage.compose_frame(self.writer, True, opcode, False, data)
 
-    @asyncio.coroutine
-    def close(self, status_code, message):
+    async def close(self, status_code, message):
         data = WebSocketMessage.build_close_data(status_code, message)
         WebSocketMessage.compose_frame(self.writer, True, OpCodes.CLOSE, False, data)
 
@@ -44,34 +41,28 @@ class WebSocketFrame:
         self.data = data
 
     @classmethod
-    @asyncio.coroutine
-    def read_frame(cls, reader):
-        head = (yield from reader.read(1))[0]
+    async def read_frame(cls, reader):
+        head = (await reader.readexactly(1))[0]
         fin = bool(head >> 7)
         opcode = int(head & 0b00001111)
-        next = (yield from reader.read(1))[0]
+        next = (await reader.readexactly(1))[0]
         mask = bool(next >> 7)
         payload_length = next & 0b01111111
         if payload_length == 126:
-            payload_bytes = yield from reader.read(2)
+            payload_bytes = await reader.readexactly(2)
             payload_length = struct.unpack('!H', payload_bytes)[0]
         elif payload_length == 127:
-            payload_bytes = yield from reader.read(8)
+            payload_bytes = await reader.readexactly(8)
             payload_length = struct.unpack('!Q', payload_bytes)[0]
         if mask:
-            masking_key = yield from reader.read(4)
+            masking_key = await reader.readexactly(4)
 
-        encoded_payload = yield from reader.read(payload_length)
+        data = await reader.readexactly(payload_length)
 
-        decoded_payload = bytearray()
-        i = 0
-        for byte in encoded_payload:
-            if mask:
-                decoded_payload.append(byte ^ masking_key[i % 4])
-            else:
-                decoded_payload.append(byte)
-            i += 1
-        return cls(fin, opcode, decoded_payload)
+        if mask:
+            data = bytes(b ^ masking_key[i % 4] for i, b in enumerate(data))
+
+        return cls(fin, opcode, data)
 
 
 class WebSocketMessage:
@@ -80,21 +71,19 @@ class WebSocketMessage:
         self.data = data
 
     @classmethod
-    @asyncio.coroutine
-    def await_message(cls, reader):
-        frame = yield from WebSocketFrame.read_frame(reader)
+    async def await_message(cls, reader):
+        frame = await WebSocketFrame.read_frame(reader)
         opcode = frame.opcode
-        data = frame.data
+        data = bytearray(frame.data)
         fin = frame.fin
         while not fin:
-            frame = yield from WebSocketFrame.read_frame(reader)
+            frame = await WebSocketFrame.read_frame(reader)
             data.extend(frame.data)
             fin = frame.fin
         return cls(opcode, data)
 
     @classmethod
-    @asyncio.coroutine
-    def compose_frame(cls, writer, fin, opcode, mask, data):
+    async def compose_frame(cls, writer, fin, opcode, mask, data):
         frame = bytearray()
         head = 0b00000000
         if fin:
@@ -118,7 +107,7 @@ class WebSocketMessage:
         if data:
             frame.extend(data)
         writer.write(frame)
-        yield from writer.drain()
+        await writer.drain()
 
     @classmethod
     def build_close_data(cls, status_code, message):
