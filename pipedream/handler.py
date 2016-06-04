@@ -1,5 +1,5 @@
 import asyncio
-from protocol import Status, OpCode, CloseCode, WebSocketProtocol
+from .protocol import Status, OpCode, CloseCode, WebSocketProtocol
 
 
 class WebSocketHandler:

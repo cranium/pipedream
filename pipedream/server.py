@@ -1,7 +1,7 @@
 import asyncio
-from handshake import WebSocketHandshakeProtocol
-from protocol import WebSocketProtocol, CloseCode
-from handler import WebSocketHandler
+from .handshake import WebSocketHandshakeProtocol
+from .protocol import WebSocketProtocol, CloseCode
+from .handler import WebSocketHandler
 
 
 class WebSocketServer:

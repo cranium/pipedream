@@ -1,6 +1,6 @@
 import struct
 import asyncio
-from server import WebSocketServer
+from .server import WebSocketServer
 
 
 class OpCode:
