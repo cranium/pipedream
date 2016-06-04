@@ -6,7 +6,7 @@ async def handler(protocol):
         message = await protocol.recv()
         print("opcode: "+str(message.opcode))
         print(message.data)
-        await protocol.send("I fack u mather")
+        await protocol.send("Message Received")
 
 loop = asyncio.get_event_loop()
 server = serve(handler, "0.0.0.0", 8888, loop)
