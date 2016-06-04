@@ -1,6 +1,8 @@
 import base64
 from hashlib import sha1
 
+__all__ = ["WebSocketHandshakeProtocol"]
+
 
 class WebSocketHandshakeProtocol:
     """

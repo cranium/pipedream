@@ -2,6 +2,8 @@ import struct
 import asyncio
 from .server import WebSocketServer
 
+__all__ = ["OpCode", "CloseCode", "Status", "WebSocketProtocol", "WebSocketFrame", "WebSocketMessage"]
+
 
 class OpCode:
     """

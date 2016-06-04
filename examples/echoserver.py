@@ -1,6 +1,6 @@
 import asyncio
-from handler import WebSocketHandler
-from server import start_server, WebSocketServer
+from pipedream import WebSocketHandler
+from pipedream import start_server, WebSocketServer
 
 
 class WebSocketEchoTest(WebSocketHandler):

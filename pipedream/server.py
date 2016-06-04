@@ -3,6 +3,8 @@ from .handshake import WebSocketHandshakeProtocol
 from .protocol import WebSocketProtocol, CloseCode
 from .handler import WebSocketHandler
 
+__all__ = ["WebSocketServer", "start_server"]
+
 
 class WebSocketServer:
     """
