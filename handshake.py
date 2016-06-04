@@ -1,6 +1,5 @@
 import base64
 from hashlib import sha1
-import asyncio
 
 
 class WebSocketHandshakeProtocol:

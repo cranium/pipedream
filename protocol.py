@@ -1,8 +1,7 @@
-import asyncio
 import struct
 
 
-class OpCodes:
+class OpCode:
     CONTINUATION = 0
     TEXT = 1
     BINARY = 2
@@ -11,27 +10,51 @@ class OpCodes:
     PONG = 10
 
 
+class CloseCode:
+    NORMAL = 1000
+    GOING_AWAY = 1001
+    PROTOCOL_ERROR = 1002
+    UNEXPECTED_TYPE = 1003
+    WRONG_TYPE = 1007
+    POLICY_VIOLATION = 1008
+    MESSAGE_TOO_BIG = 1009
+    EXTENSION_EXPECTED = 1010
+    UNEXPECTED_CONDITION = 1011
+
+
+class Status:
+    OPEN = 1
+    CLOSING = 2
+    CLOSED = 3
+
+
 class WebSocketProtocol:
-    def __init__(self, reader, writer):
+    def __init__(self, reader, writer, server):
         self.reader = reader
         self.writer = writer
+        self.server = server
+        self.status = Status.OPEN
 
     async def recv(self):
         message = await WebSocketMessage.await_message(self.reader)
         return message
 
+
     async def send(self, data, text=True):
         if text:
             data = data.encode()
-            opcode = OpCodes.TEXT
+            opcode = OpCode.TEXT
         else:
             data = bytes(data)
-            opcode = OpCodes.BINARY
+            opcode = OpCode.BINARY
         await WebSocketMessage.compose_frame(self.writer, True, opcode, False, data)
 
-    async def close(self, status_code, message):
+    async def close(self, status_code=CloseCode.NORMAL, message="Connection Close"):
+        self.status = Status.CLOSING
         data = WebSocketMessage.build_close_data(status_code, message)
-        WebSocketMessage.compose_frame(self.writer, True, OpCodes.CLOSE, False, data)
+        await WebSocketMessage.compose_frame(self.writer, True, OpCode.CLOSE, False, data)
+        self.server.sockets.remove(self)
+        self.status = Status.CLOSED
 
 
 class WebSocketFrame:
@@ -80,6 +103,7 @@ class WebSocketMessage:
             frame = await WebSocketFrame.read_frame(reader)
             data.extend(frame.data)
             fin = frame.fin
+
         return cls(opcode, data)
 
     @classmethod
@@ -113,7 +137,12 @@ class WebSocketMessage:
     def build_close_data(cls, status_code, message):
         data = bytearray()
         if status_code:
-            data.extend(struct.pack("!H"))
+            data.extend(struct.pack("!H", status_code))
             if message:
                 data.extend(message.encode())
         return data
+
+    def decode_close(self):
+        status_code = struct.unpack("!H", self.data[0:2])
+        message = self.data[2:]
+        return status_code, message
