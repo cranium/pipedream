@@ -1,16 +1,13 @@
 import asyncio
 from pipedream import WebSocketHandler
-from pipedream import start_server, WebSocketServer
+from pipedream import WebSocketServer
 
 
 class WebSocketEchoTest(WebSocketHandler):
     def recv(self, message):
         self.send(message)
 
-
-ws_server = WebSocketServer(WebSocketEchoTest)
-
-server = start_server(ws_server, "0.0.0.0", 8888)
+server = WebSocketServer.start(WebSocketEchoTest, "0.0.0.0", 8888)
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(server)

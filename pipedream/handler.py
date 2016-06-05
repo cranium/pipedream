@@ -53,7 +53,7 @@ class WebSocketHandler:
         pass
 
     @classmethod
-    async def handle(cls, protocol):
+    async def handle(cls, protocol: WebSocketProtocol):
         """
         Handles incoming messages on the socket and calls the appropriate callback
         :param protocol:

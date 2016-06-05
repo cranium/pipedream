@@ -1,6 +1,5 @@
 import struct
 import asyncio
-from .server import WebSocketServer
 
 __all__ = ["OpCode", "CloseCode", "Status", "WebSocketProtocol", "WebSocketFrame", "WebSocketMessage"]
 
@@ -45,7 +44,7 @@ class WebSocketProtocol:
     """
     The protocol that manages the WebSocket. Defaults to operating as a server.
     """
-    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, server: WebSocketServer):
+    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, server: "WebSocketServer"):
         """
         :param reader: StreamReader used to read from the TCP socket
         :param writer: StreamWriter used to write to the TCP socket
@@ -89,7 +88,7 @@ class WebSocketProtocol:
         """
         Future to send the closing message on the WebSocket
         :param status_code: CloseCode indicating reason for closing
-        :param message: String indicating reason for closing
+        :param reason: String indicating reason for closing
         :return:
         """
         self.status = Status.CLOSING

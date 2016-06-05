@@ -3,7 +3,7 @@ from .handshake import WebSocketHandshakeProtocol
 from .protocol import WebSocketProtocol, CloseCode
 from .handler import WebSocketHandler
 
-__all__ = ["WebSocketServer", "start_server"]
+__all__ = ["WebSocketServer"]
 
 
 class WebSocketServer:
@@ -16,7 +16,8 @@ class WebSocketServer:
         :return:
         """
         self.handler = handler
-        self.sockets = set()
+
+        self.sockets = set()  # type: set(WebSocketProtocol)
         self.server = None
 
     async def protocol_factory(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
@@ -39,20 +40,21 @@ class WebSocketServer:
         :param message:
         :return:
         """
-        for socket in self.sockets:
+        for socket in self.sockets:  # type: WebSocketHandler
             asyncio.ensure_future(socket.close(CloseCode.GOING_AWAY, message))
         self.server.close()
 
-
-def start_server(ws_server: WebSocketServer, host: str=None, port: int=None, loop: asyncio.BaseEventLoop=None):
-    """
-    Wraps asyncio.start_server to call WebSocketServer
-    :param ws_server:
-    :param host:
-    :param port:
-    :param loop:
-    :return:
-    """
-    server = asyncio.start_server(ws_server.protocol_factory, host, port, loop=loop)
-    ws_server.server = server
-    return server
+    @classmethod
+    def start(cls, ws_handler: WebSocketHandler, host: str=None, port: int=None, loop: asyncio.BaseEventLoop=None):
+        """
+        Instantiates a WebSocketServer and wraps the server object
+        :param ws_handler:
+        :param host:
+        :param port:
+        :param loop:
+        :return:
+        """
+        ws_server = cls(ws_handler)
+        server = asyncio.start_server(ws_server.protocol_factory, host, port, loop=loop)
+        ws_server.server = server
+        return server
