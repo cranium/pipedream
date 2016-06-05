@@ -4,8 +4,14 @@ from pipedream import WebSocketServer
 
 
 class WebSocketEchoTest(WebSocketHandler):
+    def on_connect(self):
+        print("Connection made.")
+
     def recv(self, message):
         self.send(message)
+
+    def on_close(self, *args):
+        print("Connection closed.")
 
 server = WebSocketServer.start(WebSocketEchoTest, "0.0.0.0", 8888)
 

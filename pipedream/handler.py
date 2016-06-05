@@ -17,6 +17,13 @@ class WebSocketHandler:
         """
         self.protocol = protocol
 
+    def on_connect(self):
+        """
+        Callback called after the HTTP handshake has completed and the socket is online
+        :return:
+        """
+        pass
+
     def recv(self, message: str):
         """
         Callback for a received message
@@ -42,6 +49,7 @@ class WebSocketHandler:
         :return:
         """
         asyncio.ensure_future(self.protocol.close(status, message))
+        self.on_close(status, message)
 
     def on_close(self, status_code: int, message: str):
         """
@@ -60,6 +68,7 @@ class WebSocketHandler:
         :return:
         """
         websocket = cls(protocol)
+        websocket.on_connect()
         while protocol.status == Status.OPEN:
             message = await protocol.recv()
             if message.opcode == OpCode.TEXT:
@@ -67,6 +76,6 @@ class WebSocketHandler:
             elif message.opcode == OpCode.BINARY:
                 websocket.recv(message.data)
             elif message.opcode == OpCode.CLOSE:
-                await protocol.close()
+                await protocol.on_close()
                 status_code, message = message.decode_close()
                 websocket.on_close(status_code, message)

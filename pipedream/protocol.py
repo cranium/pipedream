@@ -86,7 +86,7 @@ class WebSocketProtocol:
 
     async def close(self, status_code: int=None, reason: str=None):
         """
-        Future to send the closing message on the WebSocket
+        Future to begin the closing handshake on the WebSocket
         :param status_code: CloseCode indicating reason for closing
         :param reason: String indicating reason for closing
         :return:
@@ -97,7 +97,27 @@ class WebSocketProtocol:
             message.opcode = OpCode.CLOSE
             message.build_close_data(status_code, reason)
             await message.send(self.writer)
-        elif self.status == Status.CLOSING:
+            await asyncio.wait_for(self.recv(), 10)
+            self.shutdown()
+
+    async def on_close(self):
+        """
+        Respond to the closing handshake with a close frame followed by killing the socket
+        :return:
+        """
+        if self.status == Status.OPEN:
+            self.status = Status.CLOSING
+            message = WebSocketMessage()
+            message.opcode = OpCode.CLOSE
+            await message.send(self.writer)
+            self.shutdown()
+
+    def shutdown(self):
+        """
+        Shut down the socket connection and detach it from the server
+        :return:
+        """
+        if self.status == Status.CLOSING:
             self.writer.close()
             self.server.sockets.remove(self)
             self.status = Status.CLOSED
@@ -194,7 +214,10 @@ class WebSocketMessage:
         head |= opcode
         frame.append(head)
         next_byte = 0b00000000
-        payload_length = len(data)
+        if data:
+            payload_length = len(data)
+        else:
+            payload_length = 0
         if 65535 >= payload_length >= 126:
             next_byte |= 126
             extended_bytes = struct.pack("!H", payload_length)
