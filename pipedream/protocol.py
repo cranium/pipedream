@@ -91,13 +91,16 @@ class WebSocketProtocol:
         :param reason: String indicating reason for closing
         :return:
         """
-        self.status = Status.CLOSING
-        message = WebSocketMessage()
-        message.opcode = OpCode.CLOSE
-        message.build_close_data(status_code, reason)
-        await message.send(self.writer)
-        self.server.sockets.remove(self)
-        self.status = Status.CLOSED
+        if self.status == Status.OPEN:
+            self.status = Status.CLOSING
+            message = WebSocketMessage()
+            message.opcode = OpCode.CLOSE
+            message.build_close_data(status_code, reason)
+            await message.send(self.writer)
+        elif self.status == Status.CLOSING:
+            self.writer.close()
+            self.server.sockets.remove(self)
+            self.status = Status.CLOSED
 
 
 class WebSocketFrame:
