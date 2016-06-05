@@ -1,5 +1,5 @@
-import struct
 import asyncio
+import struct
 
 __all__ = ["OpCode", "CloseCode", "Status", "WebSocketProtocol", "WebSocketFrame", "WebSocketMessage"]
 
