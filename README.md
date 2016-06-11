@@ -4,6 +4,7 @@ A Python3 asyncio based websocket library
 Usage:
 
 Extend WebSocketHandler and override these functions:
+
 1. on_connect
 2. recv
 3. send
