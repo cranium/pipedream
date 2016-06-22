@@ -141,7 +141,7 @@ class WebSocketFrame:
     @classmethod
     async def read_frame(cls, reader: asyncio.StreamReader):
         """
-        Classmethod to read a frame from the WebSocket and initialize a WebSocketFrame with the relevant data
+        Class Method to read a frame from the WebSocket and initialize a WebSocketFrame with the relevant data
         :param reader: StreamReader to read from
         :return: Initialized WebSocketFrame
         :rtype: WebSocketFrame
@@ -160,11 +160,10 @@ class WebSocketFrame:
             payload_length = struct.unpack('!Q', payload_bytes)[0]
         if mask:
             masking_key = await reader.readexactly(4)
-
-        data = await reader.readexactly(payload_length)
-
-        if mask:
+            data = await reader.readexactly(payload_length)
             data = bytes(b ^ masking_key[i % 4] for i, b in enumerate(data))
+        else:
+            data = await reader.readexactly(payload_length)
 
         return cls(fin, opcode, data)
 

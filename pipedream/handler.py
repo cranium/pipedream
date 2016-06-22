@@ -9,7 +9,7 @@ class WebSocketHandler:
     """
     Base class for handling a WebSocket connection.
     Contains the loop that calls back to all of the appropriate methods.
-    This should be subclassed by the application and passed into WebSocketServer
+    This should be sub-classed by the application and passed into WebSocketServer
     """
     def __init__(self, protocol: WebSocketProtocol):
         """
@@ -68,15 +68,15 @@ class WebSocketHandler:
         :param protocol:
         :return:
         """
-        websocket = cls(protocol)
-        websocket.on_connect()
+        web_socket = cls(protocol)
+        web_socket.on_connect()
         while protocol.status == Status.OPEN:
             message = await protocol.recv()
             if message.opcode == OpCode.TEXT:
-                websocket.recv(message.data.decode("utf-8"))
+                web_socket.recv(message.data.decode("utf-8"))
             elif message.opcode == OpCode.BINARY:
-                websocket.recv(message.data)
+                web_socket.recv(message.data)
             elif message.opcode == OpCode.CLOSE:
                 await protocol.on_close()
                 status_code, message = message.decode_close()
-                websocket.on_close(status_code, message)
+                web_socket.on_close(status_code, message)
