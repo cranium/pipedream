@@ -9,9 +9,8 @@ class WebSocketHandshakeProtocol:
     HTTP protocol to handle the handshake with the client
     """
 
-    # TODO: Move these constants to a config
+    # TODO: Move this constant to a config
     MAX_HEADERS = 256
-    MAX_LINE = 4096
 
     HANDSHAKE_UUID = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
