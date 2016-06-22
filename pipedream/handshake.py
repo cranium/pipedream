@@ -60,7 +60,7 @@ class WebSocketHandshakeProtocol:
         :rtype: dict(bytes: bytes)
         """
         headers = {}
-        request_line = await self.read_line()  # Skip this
+        await self.read_line()
         for _ in range(self.MAX_HEADERS):
             line = await self.read_line()
             if line == b'\r\n':
