@@ -78,8 +78,4 @@ class WebSocketHandshakeProtocol:
         :rtype: bytes
         """
         line = await self.reader.readline()
-        if len(line) > self.MAX_LINE:
-            raise ValueError("Line too long")
-        if not line.endswith(b'\r\n'):
-            raise ValueError("Line without CRLF")
         return line
