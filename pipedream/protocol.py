@@ -146,12 +146,11 @@ class WebSocketFrame:
         :return: Initialized WebSocketFrame
         :rtype: WebSocketFrame
         """
-        head = (await reader.readexactly(1))[0]
-        fin = bool(head >> 7)
-        opcode = int(head & 0b00001111)
-        next = (await reader.readexactly(1))[0]
-        mask = bool(next >> 7)
-        payload_length = next & 0b01111111
+        head = (await reader.readexactly(2))
+        fin = bool(head[0] >> 7)
+        opcode = int(head[0] & 0b00001111)
+        mask = bool(head[1] >> 7)
+        payload_length = head[1] & 0b01111111
         if payload_length == 126:
             payload_bytes = await reader.readexactly(2)
             payload_length = struct.unpack('!H', payload_bytes)[0]
