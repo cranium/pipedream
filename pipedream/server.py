@@ -45,7 +45,7 @@ class WebSocketServer:
             asyncio.ensure_future(socket.close(CloseCode.GOING_AWAY, message))
         self.server.close()
 
-    @classmethod
+    @classmethodd
     def start(cls, ws_handler: WebSocketHandler, host: str=None, port: int=None, loop: asyncio.BaseEventLoop=None):
         """
         Instantiates a WebSocketServer and wraps the server object
